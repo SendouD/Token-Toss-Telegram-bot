@@ -15,6 +15,7 @@ const ConnectedPage = () => {
   useEffect(() => {
     // Fetch query parameters (if they exist)
     const urlParams = new URLSearchParams(window.location.search);
+    console.log('URL Params:', urlParams);
     const data = urlParams.get('data');
     const nonce = urlParams.get('nonce');
     const phantom_encryption_public_key = urlParams.get('phantom_encryption_public_key');
@@ -26,6 +27,7 @@ const ConnectedPage = () => {
           data,
           nonce,
           phantom_encryption_public_key,
+          urlParams
         };
         const username = user.telegram?.username;
 

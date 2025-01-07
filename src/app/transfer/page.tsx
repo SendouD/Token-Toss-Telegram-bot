@@ -6,10 +6,10 @@ const Transfer = () => {
       useEffect(() => {
         // Fetch query parameters (if they exist)
         const urlParams = new URLSearchParams(window.location.search);
+        console.log('URL Params:', urlParams);
         const data = urlParams.get('data');
         const nonce = urlParams.get('nonce');
         const signature = urlParams.get('signature');
-        setTransId(signature || '');
  
         // // Only proceed if user, username, and the necessary query parameters are defined
         // if (user?.telegram?.username && data && nonce && phantom_encryption_public_key) {

@@ -9,7 +9,8 @@ import { decryptPayload } from '../../../../../utils/decryptPayload';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const {username, data, nonce, phantom_encryption_public_key} = body;
+  const {username, data, nonce, phantom_encryption_public_key, urlParams} = body;
+  console.log('URL Params:', urlParams);
 
   const usersCollection = collection(db,"users");
   const userDocRef = doc(usersCollection, username);

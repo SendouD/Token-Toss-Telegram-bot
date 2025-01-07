@@ -14,10 +14,14 @@ import axios from 'axios';
 import { uploadFiletoIPFS } from '../../../../utils/IPFS/file';
 import { uploadMetadataToIPFS } from '../../../../utils/IPFS/Metadata';
 import { createMint } from '../../../../utils/Solana/createtoken';
+import createPreWallet from '../../../../utils/Pre-generatedwallet/createwallet';
 
-const privy_app_id = "cm5cm75t609clhxi1ai83vce4";
-const privy_secret = "5hyBTQJxLWrm7R7s6B3SpHthGLETncNZ3VJm83ZiDTArF5z1zQgatNF5LC71eLbGH3AFBVMoahFe2vQVHYbwNtNw";
-const privy = new PrivyClient(privy_app_id, privy_secret);
+const privy_app_id = process.env.PRIVY_APP_ID;
+const privy_secret = process.env.PRIVY_SECRET;
+// if (!process.env.PRIVY_APP_ID || !process.env.PRIVY_SECRET) {
+//   throw new Error('Privy environment variables are not set');
+// }
+const privy = new PrivyClient(process.env.PRIVY_APP_ID!, process.env.PRIVY_SECRET!);
 
 // Initialize Solana connection
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
@@ -66,16 +70,6 @@ bot.on('message', async (msg) => {
         const walletAddress = user?.wallet?.address;
 
         if (walletAddress) {
-          // Store user data in Firestore
-          const usersRef = collection(db, "users");
-          const userDoc = doc(usersRef, msg.from.username); // Set document ID as the Telegram username
-
-          await setDoc(userDoc, {
-            username: msg.from.username,
-            wallet: walletAddress,
-            chatId: chatId,
-          });
-
           bot.sendMessage(chatId, `Your Wallet Address is: ${walletAddress}`);
         } else {
           bot.sendMessage(chatId, 'Error: No wallet address found.');
@@ -124,7 +118,7 @@ bot.on('message', async (msg) => {
     try {
       // Initiate a new connection to Phantom
       const dappKeyPair = nacl.box.keyPair();
-      const appUrl = "https://0c59-61-1-175-163.ngrok-free.app/api/telegram";
+      const appUrl = `${process.env.REDIRECT_URL}/api/telegram`;
       const redirectLink = process.env.REDIRECT_URL|| "https://default-redirect-url.com"; // Your actual redirect link
 
       // Construct the Phantom deeplink URL
@@ -198,7 +192,7 @@ bot.on('message', async (msg) => {
     }
     return;
   }
- if (msg.text === '/ct') {
+ else if (msg.text === '/createtoken') {
       bot.sendMessage(chatId, 'Please provide the following details to create your token in the following format:\n\n' +
           'Name:<Token Name>\n' +
           'Symbol:<Token Symbol>\n' +
@@ -266,7 +260,107 @@ bot.on('message', async (msg) => {
       });
       return;
   }
-  
+else if (msg.text && msg.text.startsWith('/sendsol')) {
+  try {
+      const parts = msg.text.split(' '); 
+      if (parts.length === 3 && parts[1] === 'send') {
+          const amount = parts[2]; 
+
+          if (msg.reply_to_message && msg.reply_to_message.from) {
+              const recipientUserId = msg.reply_to_message.from.id;
+              const recipientUsername = msg.reply_to_message.from.username;
+              
+              if (recipientUsername) {
+                let privyUser = await privy.getUserByTelegramUsername(recipientUsername);
+
+                if (!privyUser?.telegram?.username) {
+                  try {
+                    privyUser = (await createPreWallet(recipientUsername, recipientUserId.toString())) || null;
+                    if (privyUser) {
+                      console.log(privyUser.wallet?.address);
+                      try {
+                        if (msg.from?.username) {
+                          if (privyUser.wallet?.address) {
+                            if (privyUser.wallet) {
+                              const transactionSignature = await Transfer(privyUser.wallet.address.toString(), parseFloat(amount), msg.from.username);
+                              const button={
+                                reply_markup: {
+                                  inline_keyboard: [
+                                    [
+                                      {
+                                        text: "Transfer",
+                                        url: transactionSignature
+                                      }
+                                    ]
+                                  ]
+                                }
+                              }
+                              bot.sendMessage(chatId, `Transfer Transaction Link:`, button);
+                            } else {
+                              bot.sendMessage(chatId, 'Error: Wallet address is undefined.');
+                            }
+                          } else {
+                            throw new Error('Wallet address is undefined');
+                          }
+                        
+                          
+                        } else {
+                          bot.sendMessage(chatId, 'Error: Unable to authenticate. Please set a Telegram username.');
+                        }
+                      } catch (error) {
+                        console.error('Error sending transfer:', error);
+                        bot.sendMessage(chatId, 'Error sending transfer.');}
+                      
+                    } else {
+                      bot.sendMessage(chatId, 'Error: Unable to retrieve user wallet address.');
+                    }
+                  } catch (error) {
+                    console.error('Error creating pre-wallet:', error);
+                    bot.sendMessage(chatId, 'Error creating pre-wallet.');
+                  }
+                } 
+                else{
+                  if (msg.from?.username) {
+                    const transactionSignature = await Transfer(privyUser.wallet!.address.toString(), parseFloat(amount), msg.from.username);
+                    const button = {
+                      reply_markup: {
+                        inline_keyboard: [
+                          [
+                            {
+                              text: "Transfer",
+                              url: transactionSignature
+                            }
+                          ]
+                        ]
+                      }
+                    };
+                    bot.sendMessage(chatId, `Transfer Transaction Link:`, button);
+                  } else {
+                    bot.sendMessage(chatId, 'Error: Unable to authenticate. Please set a Telegram username.');
+                  }
+                }
+                console.log(privyUser?.wallet?.address);
+              }
+
+              // Proceed with your transaction logic, sending amount to recipientUserId
+              bot.sendMessage(chatId, `Amount ${amount} will be sent to @${recipientUsername} (UserID: ${recipientUserId})`);
+
+
+              // Here you can add further code to handle the transaction logic
+          } else {
+              bot.sendMessage(chatId, 'Please reply to the user you want to send the amount to.');
+          }
+      } else {
+          bot.sendMessage(chatId, 'Invalid command format. Use /cpw send <amount> in reply to the recipient\'s message.');
+      }
+  } catch (error) {
+      console.error('Error sending amount:', error);
+      bot.sendMessage(chatId, 'Error processing your request.');
+  }
+  return;
+}
+
+
 
   else if (msg.text === '/help') {
     bot.sendMessage(chatId, 'Available commands:\n\n' +

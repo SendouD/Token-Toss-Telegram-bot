@@ -9,7 +9,7 @@ export const Transfer = async (to: string, amount: number, username: string) => 
   const usersCollection = collection(db, "users");
   const userDocRef = doc(usersCollection, username);
   const userDoc = await getDoc(userDocRef);
-  const redirectLink = `${process.env.REDIRECT_URL}/transfer` || "https://default-redirect-url.com";
+  const redirectLink = process.env.REDIRECT_URL || "https://default-redirect-url.com";
 
   if (userDoc.exists()) {
     const user = userDoc.data();
