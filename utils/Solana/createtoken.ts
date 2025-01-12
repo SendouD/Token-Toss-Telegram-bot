@@ -38,7 +38,7 @@ export async function createMint(
     const usersCollection = collection(db, "users");
     const userDocRef = doc(usersCollection, username);
     const userDoc = await getDoc(userDocRef);
-    const redirectLink = `${process.env.REDIRECT_URL}/transfer` || "https://default-redirect-url.com";
+    const redirectLink = `${process.env.REDIRECT_URL}/tokenMint` || "https://default-redirect-url.com";
 
     if (userDoc.exists()) {
         const user = userDoc.data();
@@ -68,6 +68,7 @@ export async function createMint(
             const lamports = await connection.getMinimumBalanceForRentExemption(
                 mintSpace + metadataLen
             );
+            console.log('user public key',user.publicKey);
             const createAccountIx = web3.SystemProgram.createAccount({
                 fromPubkey: new web3.PublicKey(user.publicKey),
                 newAccountPubkey: mintKeypair.publicKey,

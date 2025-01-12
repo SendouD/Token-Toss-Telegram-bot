@@ -4,7 +4,7 @@ import { PrivyClient } from '@privy-io/server-auth';
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
-import { collection, getFirestore, doc, setDoc } from "firebase/firestore";
+import { collection, getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../../../config/firebaseconfig";
 import { sendAirdrop } from '../../../../utils/Solana/airdrop';
 import { Transfer } from '../../../../utils/Solana/transfer';
@@ -15,7 +15,9 @@ import { uploadFiletoIPFS } from '../../../../utils/IPFS/file';
 import { uploadMetadataToIPFS } from '../../../../utils/IPFS/Metadata';
 import { createMint } from '../../../../utils/Solana/createtoken';
 import createPreWallet from '../../../../utils/Pre-generatedwallet/createwallet';
-
+import { getTokenMetadata, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
+import { getUserTokens } from '../../../../utils/Solana/getUserTokens';
+import { mintTo } from '../../../../utils/Solana/tokenMint';
 const privy_app_id = process.env.PRIVY_APP_ID;
 const privy_secret = process.env.PRIVY_SECRET;
 // if (!process.env.PRIVY_APP_ID || !process.env.PRIVY_SECRET) {
@@ -32,7 +34,7 @@ const bot = new TelegramBot(token, { webHook: true });
 
 async function getWalletBalance(address: string) {
   try {
-    console.log('Fetching balance for Solana address:', address);
+    // console.log('Fetching balance for Solana address:', address);
     const publicKey = new PublicKey(address);
     const balance = await connection.getBalance(publicKey);
     return balance / LAMPORTS_PER_SOL; // Convert lamports to SOL
@@ -45,15 +47,7 @@ async function getWalletBalance(address: string) {
     }
   }
 }
-const downloadFile = async (fileUrl: string) => {
-  try {
-    const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
-    return response.data;
-  } catch (error) {
-    console.error('Error downloading file with axios:', error);
-    throw error;
-  }
-};
+
 
 
 bot.on('message', async (msg) => {
@@ -92,7 +86,7 @@ bot.on('message', async (msg) => {
 
       // Get user's wallet info from Privy
       const user = await privy.getUserByTelegramUsername(msg.from.username);
-      console.log('Retrieved user wallet:', user?.wallet);
+      // console.log('Retrieved user wallet:', user?.wallet);
 
       if (!user?.wallet?.address) {
         bot.sendMessage(chatId, 'Error: No wallet address found for your account.');
@@ -192,7 +186,7 @@ bot.on('message', async (msg) => {
     }
     return;
   }
- else if (msg.text === '/createtoken') {
+ else if (msg.text === '/ct') {
       bot.sendMessage(chatId, 'Please provide the following details to create your token in the following format:\n\n' +
           'Name:<Token Name>\n' +
           'Symbol:<Token Symbol>\n' +
@@ -211,7 +205,7 @@ bot.on('message', async (msg) => {
                       const tokenDescription = match[3].trim();
                       const photo = tokenMsg.photo[tokenMsg.photo.length - 1];
                       const file = await bot.getFile(photo.file_id);
-                      console.log(file);
+                      // console.log(file);
                       const ImageURL=await uploadFiletoIPFS(file);
                       const metadata = {
                         name: tokenName,
@@ -260,6 +254,22 @@ bot.on('message', async (msg) => {
       });
       return;
   }
+  else if(msg.text=='/cht'){
+    if (msg.reply_to_message && msg.reply_to_message.from) {
+      const recipientUserId = msg.reply_to_message.from.id;
+      const recipientUsername = msg.reply_to_message.from.username;
+  
+      if (recipientUsername) {
+        // Fetch the user's tokens and show the token list
+        await getUserTokens(msg);
+      } else {
+        bot.sendMessage(msg.chat.id, 'Please reply to a valid user.');
+      }
+    } else {
+      bot.sendMessage(msg.chat.id, 'You must reply to a user to use this command.');
+    }
+    
+  }
 else if (msg.text && msg.text.startsWith('/sendsol')) {
   try {
       const parts = msg.text.split(' '); 
@@ -269,15 +279,16 @@ else if (msg.text && msg.text.startsWith('/sendsol')) {
           if (msg.reply_to_message && msg.reply_to_message.from) {
               const recipientUserId = msg.reply_to_message.from.id;
               const recipientUsername = msg.reply_to_message.from.username;
-              
-              if (recipientUsername) {
+             
+  
+             if (recipientUsername) {
                 let privyUser = await privy.getUserByTelegramUsername(recipientUsername);
 
                 if (!privyUser?.telegram?.username) {
                   try {
                     privyUser = (await createPreWallet(recipientUsername, recipientUserId.toString())) || null;
                     if (privyUser) {
-                      console.log(privyUser.wallet?.address);
+                      // console.log(privyUser.wallet?.address);
                       try {
                         if (msg.from?.username) {
                           if (privyUser.wallet?.address) {
@@ -339,9 +350,8 @@ else if (msg.text && msg.text.startsWith('/sendsol')) {
                     bot.sendMessage(chatId, 'Error: Unable to authenticate. Please set a Telegram username.');
                   }
                 }
-                console.log(privyUser?.wallet?.address);
+                // console.log(privyUser?.wallet?.address);
               }
-
               // Proceed with your transaction logic, sending amount to recipientUserId
               bot.sendMessage(chatId, `Amount ${amount} will be sent to @${recipientUsername} (UserID: ${recipientUserId})`);
 
@@ -359,9 +369,11 @@ else if (msg.text && msg.text.startsWith('/sendsol')) {
   }
   return;
 }
-
-
-
+else if(msg.text === '/link') {
+  if (msg.from?.username) {
+    bot.sendMessage(chatId, `${process.env.REDIRECT_URL}/login`|| "https://default-redirect-url.com");}
+  
+}
   else if (msg.text === '/help') {
     bot.sendMessage(chatId, 'Available commands:\n\n' +
       '/address - Get your wallet address\n' +
@@ -369,6 +381,114 @@ else if (msg.text && msg.text.startsWith('/sendsol')) {
       '/help - Display this help message');
     return;
   }
+// Handle token selection callback
+bot.on('callback_query', async (query) => {
+  try {
+    if (!query.data?.startsWith('select_token_') || !query.from.id) return;
+
+    const { data, message: callbackMessage } = query;
+    const [_, __, index] = data.split('_');
+    const mintAddress=index;
+
+    // Assuming you're using Privy to get the recipient's wallet address
+    const recipientUsername = callbackMessage?.reply_to_message?.from?.username;
+    let recipientUserId=callbackMessage?.reply_to_message?.from?.id;
+
+    if (!recipientUsername || !recipientUserId) return;
+
+    if (recipientUsername) {
+      let privyUser = await privy.getUserByTelegramUsername(recipientUsername);
+
+      if (!privyUser?.telegram?.username) {
+        try {
+          privyUser = (await createPreWallet(recipientUsername, recipientUserId.toString())) || null;
+          if (privyUser) {
+            console.log(privyUser.wallet?.address);
+            try {
+              if (msg.from?.username) {
+                if (privyUser.wallet?.address) {
+                  if (privyUser.wallet) {
+                    bot.sendMessage(chatId, `No  Link: ${privyUser.wallet.address}, ${mintAddress}`);
+
+                  } else {
+                    bot.sendMessage(chatId, 'Error: Wallet address is undefined.');
+                  }
+                } else {
+                  throw new Error('Wallet address is undefined');
+                }
+              
+                
+              } else {
+                bot.sendMessage(chatId, 'Error: Unable to authenticate. Please set a Telegram username.');
+              }
+            } catch (error) {
+              console.error('Error sending transfer:', error);
+              bot.sendMessage(chatId, 'Error sending transfer.');}
+            
+          } else {
+            bot.sendMessage(chatId, 'Error: Unable to retrieve user wallet address.');
+          }
+        } catch (error) {
+          console.error('Error creating pre-wallet:', error);
+          bot.sendMessage(chatId, 'Error creating pre-wallet.');
+        }
+      } 
+      else{
+        if (msg.from?.username) {
+          if (privyUser.wallet?.address) {
+            const transactionURL = await mintTo(
+                new PublicKey(mintAddress),
+                new PublicKey(privyUser.wallet.address),
+                1,
+                msg.from.username
+            );
+        
+            const walletAddress = privyUser.wallet.address;
+            const mintAddr = mintAddress;
+        
+            const opts = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: 'View Transaction',
+                                url: transactionURL // The transaction URL
+                            }
+                        ]
+                    ]
+                }
+            };
+        
+            bot.sendMessage(chatId, `Airdrod To wallet: ${walletAddress}, Mint Address: ${mintAddr}`, opts);
+        }
+        
+        else{
+          bot.sendMessage(chatId,'wallet is not defined');
+        }      
+      }
+         else {
+          bot.sendMessage(chatId, 'Error: Unable to authenticate. Please set a Telegram username.');
+        }
+      }
+    }
+
+ 
+
+
+    
+
+
+
+    await bot.answerCallbackQuery(query.id);
+
+    // Confirm the selection
+  } catch (error) {
+    console.error('Error handling token selection:', error);
+    if (query.message?.chat.id) {
+      await bot.sendMessage(query.message.chat.id, 'Error processing your selection.');
+    }
+  }
+});
 });
 // export async function POST(req: NextRequest) {
 //   const body = await req.json();
