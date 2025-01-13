@@ -12,6 +12,7 @@
     "@privy-io/react-auth": "^1.98.4",
     "@privy-io/server-auth": "^1.17.2",
     "@radix-ui/react-avatar": "^1.1.2",
+    "@radix-ui/react-separator": "^1.1.1",
     "@radix-ui/react-slot": "^1.1.1",
     "@shadcn/ui": "^0.0.4",
     "@solana/spl-token": "^0.4.9",

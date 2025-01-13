@@ -29,8 +29,8 @@ const privy = new PrivyClient(process.env.PRIVY_APP_ID!, process.env.PRIVY_SECRE
 const connection = new Connection('https://api.devnet.solana.com', 'confirmed');
 
 // Initialize the bot without polling
-const token = "7572344820:AAHrtLmdV2XemSs9VQNOc3W5tv4oKkM1pdg";
-const bot = new TelegramBot(token, { webHook: true });
+const token = process.env.TELEGRAM_BOT_TOKEN;;
+const bot = new TelegramBot(token!, { webHook: true });
 
 async function getWalletBalance(address: string) {
   try {
@@ -113,17 +113,18 @@ bot.on('message', async (msg) => {
       // Initiate a new connection to Phantom
       const dappKeyPair = nacl.box.keyPair();
       const appUrl = `${process.env.REDIRECT_URL}/api/telegram`;
-      const redirectLink = process.env.REDIRECT_URL|| "https://default-redirect-url.com"; // Your actual redirect link
-
+      const redirectLink = `${process.env.REDIRECT_URL}/connect` || "https://default-redirect-url.com"; // Your actual redirect link
+  
       // Construct the Phantom deeplink URL
       const connectUrl = `https://phantom.app/ul/v1/connect?app_url=${encodeURIComponent(appUrl)}&dapp_encryption_public_key=${bs58.encode(dappKeyPair.publicKey)}&redirect_link=${encodeURIComponent(redirectLink)}&cluster=devnet`;
-
+  
       // Store the keypair in Firestore
       if (msg.from && msg.from.username) {
         const usersRef = collection(db, "users");
         const userDoc = doc(usersRef, msg.from.username);
-
-        await setDoc(userDoc, {
+        
+        // Prepare the new data for the document
+        const newData = {
           username: msg.from.username,
           dappKeyPair: {
             publicKey: bs58.encode(dappKeyPair.publicKey),
@@ -131,10 +132,25 @@ bot.on('message', async (msg) => {
           },
           chatId: chatId,
           createdAt: new Date().toISOString(),
-        });
-
+        };
+  
+        // Merge the new data with existing document fields
+        await setDoc(userDoc, newData, { merge: true });
+  
         // Send the Phantom connect deeplink to the user
-        bot.sendMessage(chatId, `Please connect your Phantom wallet: ${connectUrl}`);
+        const button = {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: "Connect",
+                  url: connectUrl
+                }
+              ]
+            ]
+          }
+        };
+        bot.sendMessage(chatId, `Please connect your Phantom wallet:`, button);
       } else {
         bot.sendMessage(chatId, 'Error: Unable to authenticate.');
       }
@@ -144,6 +160,7 @@ bot.on('message', async (msg) => {
     }
     return;
   }
+  
   else if (msg.text === '/airdrop') {
     try {
       if (msg.from?.username) {
@@ -186,7 +203,7 @@ bot.on('message', async (msg) => {
     }
     return;
   }
- else if (msg.text === '/ct') {
+ else if (msg.text === '/createtoken') {
       bot.sendMessage(chatId, 'Please provide the following details to create your token in the following format:\n\n' +
           'Name:<Token Name>\n' +
           'Symbol:<Token Symbol>\n' +
@@ -254,7 +271,7 @@ bot.on('message', async (msg) => {
       });
       return;
   }
-  else if(msg.text=='/cht'){
+  else if(msg.text=='/airdropuser') {
     if (msg.reply_to_message && msg.reply_to_message.from) {
       const recipientUserId = msg.reply_to_message.from.id;
       const recipientUsername = msg.reply_to_message.from.username;
@@ -273,8 +290,8 @@ bot.on('message', async (msg) => {
 else if (msg.text && msg.text.startsWith('/sendsol')) {
   try {
       const parts = msg.text.split(' '); 
-      if (parts.length === 3 && parts[1] === 'send') {
-          const amount = parts[2]; 
+      if (parts.length === 2) {
+          const amount = parts[1]; 
 
           if (msg.reply_to_message && msg.reply_to_message.from) {
               const recipientUserId = msg.reply_to_message.from.id;
@@ -293,7 +310,12 @@ else if (msg.text && msg.text.startsWith('/sendsol')) {
                         if (msg.from?.username) {
                           if (privyUser.wallet?.address) {
                             if (privyUser.wallet) {
-                              const transactionSignature = await Transfer(privyUser.wallet.address.toString(), parseFloat(amount), msg.from.username);
+                              const transactionSignature = await Transfer(
+                              privyUser.wallet.address.toString(), 
+                              parseFloat(amount), 
+                              msg.from.username,
+                              // `https://t.me/${msg.chat.username || ''}/${msg.message_id}` // Telegram chat deep link
+                            );
                               const button={
                                 reply_markup: {
                                   inline_keyboard: [
@@ -353,7 +375,7 @@ else if (msg.text && msg.text.startsWith('/sendsol')) {
                 // console.log(privyUser?.wallet?.address);
               }
               // Proceed with your transaction logic, sending amount to recipientUserId
-              bot.sendMessage(chatId, `Amount ${amount} will be sent to @${recipientUsername} (UserID: ${recipientUserId})`);
+              bot.sendMessage(chatId, `Amount ${amount} will be sent to @${recipientUsername})`);
 
 
               // Here you can add further code to handle the transaction logic
@@ -374,13 +396,18 @@ else if(msg.text === '/link') {
     bot.sendMessage(chatId, `${process.env.REDIRECT_URL}/login`|| "https://default-redirect-url.com");}
   
 }
-  else if (msg.text === '/help') {
-    bot.sendMessage(chatId, 'Available commands:\n\n' +
-      '/address - Get your wallet address\n' +
-      '/balance - Get your wallet balance\n' +
-      '/help - Display this help message');
-    return;
-  }
+else if (msg.text === '/help') {
+  bot.sendMessage(chatId, 'Available commands:\n\n' +
+    '/start - Welcomes the user\n' +
+    '/address - Retrieves and displays your wallet address from Privy\n' +
+    '/balance - Fetches your Solana wallet balance\n' +
+    '/connect - Initiates a Phantom wallet connection using a deeplink and stores the encryption key pair in Firestore\n' +
+    '/airdrop - Sends a Solana token airdrop to you\n' +
+    '/createtoken - Initiates token creation using token metadata and images, storing it on IPFS\n' +
+    '/airdropuser - Airdrop tokens to other users\n' +
+    '/sendsol <amount> - Sends SOL to a replied user using Privy to manage wallets');
+  return;
+}
 // Handle token selection callback
 bot.on('callback_query', async (query) => {
   try {

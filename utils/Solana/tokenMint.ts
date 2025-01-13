@@ -17,7 +17,7 @@ export async function mintTo(
     const usersCollection = collection(db, "users");
     const userDocRef = doc(usersCollection, username);
     const userDoc = await getDoc(userDocRef);
-    const redirectLink = process.env.REDIRECT_URL || "https://default-redirect-url.com";
+    const redirectLink = `${process.env.REDIRECT_URL}` || "https://default-redirect-url.com";
     function getSigners(
       signerOrMultisig: web3.Signer | web3.PublicKey,
       multiSigners: web3.Signer[]

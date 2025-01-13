@@ -3,9 +3,10 @@ import { collection, getFirestore, doc, setDoc, getDoc } from "firebase/firestor
 import { getTokenMetadata, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { db } from '@/config/firebaseconfig';
-const token = "7572344820:AAHrtLmdV2XemSs9VQNOc3W5tv4oKkM1pdg";
+const token = process.env.TELEGRAM_BOT_TOKEN;
 
-const bot = new TelegramBot(token, { webHook: true });
+
+const bot = new TelegramBot(token!, { webHook: true });
 
 export async function getUserTokens(msg: TelegramBot.Message) {
   const connection = new Connection('https://api.devnet.solana.com', 'confirmed');

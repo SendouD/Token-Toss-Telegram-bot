@@ -4,12 +4,13 @@ import bs58 from "bs58";
 import { encryptPayload } from "../encryptPayload";
 import { PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL, Connection } from "@solana/web3.js";
 
-export const Transfer = async (to: string, amount: number, username: string) => {
+export const Transfer = async (to: string, amount: number, username: string// New parameter for telegram chat link
+) => {
   // Fetch user from Firestore
   const usersCollection = collection(db, "users");
   const userDocRef = doc(usersCollection, username);
   const userDoc = await getDoc(userDocRef);
-  const redirectLink = process.env.REDIRECT_URL || "https://default-redirect-url.com";
+  const redirectLink = `${process.env.REDIRECT_URL}/transactionSignature` || "https://default-redirect-url.com";
 
   if (userDoc.exists()) {
     const user = userDoc.data();

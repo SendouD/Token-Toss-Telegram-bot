@@ -7,7 +7,7 @@ import TelegramBot from "node-telegram-bot-api";
 
 
 
-const token = "7572344820:AAHrtLmdV2XemSs9VQNOc3W5tv4oKkM1pdg";
+const token = process.env.TELEGRAM_BOT_TOKEN;
 
 
 
