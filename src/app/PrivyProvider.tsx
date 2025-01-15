@@ -6,7 +6,7 @@ import { Keypair, Transaction, SystemProgram, Connection, PublicKey } from '@sol
 export default function Providers({children}: {children: React.ReactNode}) {
   return (
     <PrivyProvider
-      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
+      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || 'default-app-id'}
       config={{
         // Customize Privy's appearance in your app
         appearance: {
