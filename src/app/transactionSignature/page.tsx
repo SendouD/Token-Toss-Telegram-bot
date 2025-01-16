@@ -6,28 +6,19 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, AlertTriangle, ExternalLink } from 'lucide-react';
-import { collection, doc, getDoc } from 'firebase/firestore';
-import bs58 from 'bs58';
-import { db } from '@/config/firebaseconfig';
-import { decryptPayload } from '../../../utils/decryptPayload';
 
 const TransactionSignature = () => {
   const { ready, authenticated, user } = usePrivy();
-  const [status, setStatus] = useState<'waiting' | 'loading' | 'success' | 'error'>('waiting');
-  const [connectionData, setConnectionData] = useState<{
-    data: string;
-    nonce: string;
-    signature: string;
-    urlParams: Record<string, string>;
-  } | null>(null);
+  const [status, setStatus] = useState('waiting');
+  const [signature, setSignature] = useState('');
 
-  const truncateSignature = (signature: string) => {
-    if (signature.length <= 12) return signature;
-    return `${signature.slice(0, 8)}...${signature.slice(-8)}`;
+  const truncateSignature = (sig: string | any[]) => {
+    if (!sig || sig.length <= 12) return sig;
+    return `${sig.slice(0, 8)}...${sig.slice(-8)}`;
   };
 
-  const viewOnExplorer = (signature: string) => {
-    window.open(`https://explorer.solana.com/tx/${signature}?cluster=devnet`, '_blank');
+  const viewOnExplorer = (sig: string) => {
+    window.open(`https://explorer.solana.com/tx/${sig}?cluster=devnet`, '_blank');
   };
 
   useEffect(() => {
@@ -38,35 +29,41 @@ const TransactionSignature = () => {
         }
 
         setStatus('loading');
+        
         const urlParams = new URLSearchParams(window.location.search);
         const data = urlParams.get('data');
         const nonce = urlParams.get('nonce');
-
-        if (!data || !nonce) {
-          throw new Error('Missing URL parameters');
-        }
-
-        const username = user.telegram.username;
-        const usersCollection = collection(db, "users");
-        const userDocRef = doc(usersCollection, username);
-        const userDoc = await getDoc(userDocRef);
-
-        if (!userDoc.exists()) {
-          throw new Error('User document not found');
-        }
-
-        const userData = userDoc.data();
-        const sharedSecret = bs58.decode(userData.sharedSecret);
-        const transactionData = decryptPayload(data, nonce, sharedSecret);
-
-        setConnectionData({
-          data,
-          nonce,
-          signature: transactionData.signature,
-          urlParams: Object.fromEntries(urlParams)
-        });
+        console.log(data);
         
-        setStatus('success');
+        if (!user?.telegram?.username || !data || !nonce) {
+          throw new Error('Missing required data');
+        }
+  
+        const response = await fetch('/api/telegram/transactionSignature', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            username: user.telegram.username, 
+            data, 
+            nonce 
+          }),
+        });
+        console.log(response)
+  
+        if (!response.ok) {
+          throw new Error('Failed to fetch transaction signature');
+        }
+
+        const result = await response.json();
+        
+        if (result.status === 'OK' && result.data) {
+          setSignature(result.data);
+          setStatus('success');
+        } else {
+          throw new Error('Invalid response data');
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         setStatus('error');
@@ -94,7 +91,7 @@ const TransactionSignature = () => {
       <Card className="w-[380px] bg-card/20 backdrop-blur-xl border-2 border-purple-500 pixel-borders">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center text-foreground pixel-text">
-            Wallet Connection
+            Transaction Status
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
@@ -111,17 +108,17 @@ const TransactionSignature = () => {
               </>
             )}
             
-            {status === 'success' && connectionData && (
+            {status === 'success' && signature && (
               <>
                 <CheckCircle className="h-16 w-16 text-green-500" />
                 <div className="text-foreground pixel-text text-center space-y-2">
-                  <p>Transaction signature:</p>
+                  <p>Transaction successful!</p>
                   <div className="p-2 bg-card/50 rounded-lg border border-purple-500">
-                    <span className="font-mono">{truncateSignature(connectionData.signature)}</span>
+                    <span className="font-mono">{truncateSignature(signature)}</span>
                   </div>
                   <Button
                     className="mt-2 gap-2 bg-purple-600 hover:bg-purple-700 text-white transition-all duration-300 pixel-borders pixel-text"
-                    onClick={() => viewOnExplorer(connectionData.signature)}
+                    onClick={() => viewOnExplorer(signature)}
                   >
                     <ExternalLink className="h-4 w-4" />
                     View on Explorer
@@ -133,12 +130,12 @@ const TransactionSignature = () => {
             {status === 'error' && (
               <>
                 <AlertTriangle className="h-16 w-16 text-red-500" />
-                <p className="text-foreground pixel-text text-center">Error connecting wallet. Please try again.</p>
+                <p className="text-foreground pixel-text text-center">Error processing transaction. Please try again.</p>
                 <Button 
                   className="mt-4 w-full bg-purple-600 hover:bg-purple-700 text-white transition-all duration-300 pixel-borders pixel-text"
                   onClick={() => window.location.reload()}
                 >
-                  Retry Connection
+                  Retry
                 </Button>
               </>
             )}
