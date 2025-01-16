@@ -8,7 +8,7 @@ const Commands = () => {
         { command: '/connect', description: 'Initiates a Phantom wallet connection using a deeplink and stores the encryption key pair in Firestore&#39;' },
         { command: '/airdrop', description: 'Sends a Native devnet SOL airdrop to you&#39;' },
         { command: '/createtoken', description: 'Initiates token creation using token metadata and images, storing it on IPFS&#39;' },
-        { command: '/airdropuser', description: 'Airdrop tokens to other users&#39;' },
+        { command: '/airdropuser', description: 'Airdrop tokens to other users' },
         { command: '/sendsol <amount>', description: 'Sends SOL to a replied user using Privy to manage wallets&#39;' },
 
     ];

@@ -404,8 +404,8 @@ else if (msg.text === '/help') {
     '/connect - Initiates a Phantom wallet connection using a deeplink and stores the encryption key pair in Firestore\n' +
     '/airdrop - Sends a Solana token airdrop to you\n' +
     '/createtoken - Initiates token creation using token metadata and images, storing it on IPFS\n' +
-    '/sendsol <amount> - Sends SOL to a replied user using Privy to manage wallets\n'+
-  '/help-shows the list of commands ');
+    '/airdropuser - Airdrop tokens to other users\n' +
+    '/sendsol <amount> - Sends SOL to a replied user using Privy to manage wallets');
   return;
 }
 // Handle token selection callback
