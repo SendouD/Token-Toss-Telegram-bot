@@ -6,7 +6,7 @@ import Providers from './PrivyProvider'
 
 export const metadata: Metadata = {
   title: 'Token Toss - Mint & Send SOL on Telegram',
-  description: 'Create meme coins and toss SOL to your Telegram group members with our retro-styled bot',
+  description: 'Create meme coins and toss SOL to your Telegram group members',
 }
 export default function RootLayout({
   children,

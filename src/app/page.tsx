@@ -18,7 +18,7 @@ export default function Home() {
             <span className="text-[#c3ff00]">TOSS</span>
           </h1>
           <p className="max-w-2xl mx-auto mb-8 text-lg text-muted-foreground md:text-xl">
-            Mint memecoins and toss SOL to your Telegram group members with our retro-styled bot
+            Mint memecoins and toss SOL to your Telegram group members 
           </p>
           <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
             <a
@@ -31,18 +31,6 @@ export default function Home() {
                 className="px-8 py-6 text-lg font-bold transition-transform pixel-borders hover:scale-105"
               >
                 Add to Telegram
-              </Button>
-            </a>
-            <a
-              href="https://t.me/+4AcflrL8Bkk4NmNl"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button
-                size="lg"
-                className="px-8 py-6 text-lg font-bold transition-transform pixel-borders hover:scale-105"
-              >
-                Check in this group
               </Button>
             </a>
           </div>
