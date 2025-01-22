@@ -22,7 +22,7 @@ export default function Home() {
           </p>
           <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
             <a
-              href="https://t.me/Soltoken_Launcher_bot"
+              href="https://github.com/SendouD/Token-toss-telegram-bot-backend"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -97,7 +97,7 @@ export default function Home() {
           <h2 className="mb-8 text-3xl font-bold text-foreground pixel-text md:text-4xl">
             Ready to <span className="text-purple-400">Toss</span> Some Tokens?
           </h2>
-          <a href="https://t.me/Soltoken_Launcher_bot" target="_blank" rel="noopener noreferrer">
+          <a href="https://github.com/SendouD/Token-toss-telegram-bot-backend" target="_blank" rel="noopener noreferrer">
             <Button
               variant="secondary"
               size="lg"
